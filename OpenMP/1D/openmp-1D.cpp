@@ -11,7 +11,7 @@
 #include <math.h>
 #include <omp.h>
 
-#define NUM_TIME_STEPS  100                     // number of time steps the simultation runs through
+#define NUM_TIME_STEPS  100                      // number of time steps the simultation runs through
 
 #ifndef NUME
 #define NUME            1024                    // total number of elements
@@ -70,7 +70,7 @@ int main(void) {
     double usecs = 1000000 * (time_end - time_init);
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
 
-    
+    printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
 }
 
 void DoAllWork(int me) {
