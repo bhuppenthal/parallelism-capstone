@@ -32,7 +32,34 @@ void    DoAllWork(int);
 
 int main(void) {
 
-    printf("Hello world\n");
+    // Setting number of threads that will be used
+    omp_set_num_threads(NUMT);
+
+    Now = 0;
+    Next = 1;
+
+    // Setting all initial temperatures to 0, except the middle value which is set to 100
+    for (int i = 0; i < NUME; i++)
+        Temps[Now][i] = 0;
+    
+    Temps[Now][NUME/2] = 100;
+
+    // Returns the current wall clock time in seconds
+    double time_init = omp_get_wtime();
+
+    #pragma omp parallel default(none) shared(Temps,Now,Next) {
+
+        // save the thread number
+        int me = omp_get_thread_num();
+        // each thread calls this function passing in their number
+        DoAllWork(me);
+    }
+
+    // Calculate time elapsed from start of function until all threads completed
+    double time_end = omp_get_wtime();
+    double usecs = 1000000 * (time_end - time_init);
+    double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
+    
     
 }
 
