@@ -25,8 +25,18 @@
 
 float   Temps[2][NUME];                         // storing all temperatures "Now" and "Next" states
 
-int     Now;                                    // which array is the "current values" = 0 or 1
-int     Next;                                   // which array is being filled = 1 or 0
+int     now;                                    // which array is the "current values" = 0 or 1
+int     next;                                   // which array is being filled = 1 or 0
+
+// Heat Diffusion Equation Constants
+const float RHO = 8050;
+const float C = 0.466;
+const float K = 20;
+// float k_over_rho_c = K/(RHO*C);                 // units of m^2/s NOTE: Cannot be a const (true for OpenMP too?)
+// // K/(RHO*C) = 5.33 x 10^-6 m^2/s
+
+const float DX = 1;
+const float DT = 1;
 
 void    DoAllWork(int);
 
@@ -35,20 +45,20 @@ int main(void) {
     // Setting number of threads that will be used
     omp_set_num_threads(NUMT);
 
-    Now = 0;
-    Next = 1;
+    now = 0;
+    next = 1;
 
     // Setting all initial temperatures to 0, except the middle value which is set to 100
     for (int i = 0; i < NUME; i++)
-        Temps[Now][i] = 0;
+        Temps[now][i] = 0;
     
-    Temps[Now][NUME/2] = 100;
+    Temps[now][NUME/2] = 100;
 
     // Returns the current wall clock time in seconds
     double time_init = omp_get_wtime();
 
-    #pragma omp parallel default(none) shared(Temps,Now,Next) {
-
+    #pragma omp parallel default(none) shared(Temps,now,next) 
+    {
         // save the thread number
         int me = omp_get_thread_num();
         // each thread calls this function passing in their number
@@ -59,12 +69,31 @@ int main(void) {
     double time_end = omp_get_wtime();
     double usecs = 1000000 * (time_end - time_init);
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
-    
+
     
 }
 
 void DoAllWork(int me) {
 
-    printf("Testing\n");    
+    // What range of global Temps array this thread is responsible for:
+    int first = me * NUM_ELEM_PER_THREAD;
+    int last = first + (NUM_ELEM_PER_THREAD - 1);
+
+    for (int step = 0; step < NUM_TIME_STEPS; step++) {
+        
+        // first element on the left:
+        {
+            float left = 0;
+            if (me != 0)
+                left = Temps[now][first - 1];
+            
+            float dtemp = ((K/(RHO*C)) * 
+                        (left - (2.0 * Temps[now][first]) + Temps[now][first + 1]) / (DX * DX)) * DT;
+            
+            Temps[next][first] = Temps[now][first] + dtemp;
+            
+
+        }
+    }    
 
 }
