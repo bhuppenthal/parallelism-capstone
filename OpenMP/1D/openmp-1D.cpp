@@ -91,9 +91,38 @@ void DoAllWork(int me) {
                         (left - (2.0 * Temps[now][first]) + Temps[now][first + 1]) / (DX * DX)) * DT;
             
             Temps[next][first] = Temps[now][first] + dtemp;
+        }
+
+        // all the nodes in between:
+        for (int i = first + 1; i <= last - 1; i++) {
             
+            float dtemp = ((K/(RHO*C)) *
+                        (Temps[now][i-1] - (2.0 * Temps[now][i]) + Temps[now][i+1]) / (DX * DX)) * DT;
+            Temps[next][i] = Temps[now][i] + dtemp;
+        }
+
+        // last element on the right:
+        {
+            float right = 0;
+            if (me != NUMT - 1)
+                right = Temps[now][last + 1];
+            
+            float dtemp = ((K/(RHO*C)) * 
+                        (Temps[now][last - 1] - (2.0 * Temps[now][last]) + right) / (DX * DX)) * DT;
+            Temps[next][last] = Temps[now][last] + dtemp;
 
         }
+
+        // all threads need to wait here so that all Temps[next][*] values are filled:
+        #pragma omp barrier
+
+        // want just one thread swapping the definitions of now and next
+        #pragma omp single
+        {
+            now = next;
+            next = 1 - next;
+        } // implied barrier exists here
+
     }    
 
 }
