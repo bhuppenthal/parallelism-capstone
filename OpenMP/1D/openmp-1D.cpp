@@ -79,7 +79,7 @@ int main(void) {
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
 
     if (CSV) {
-        fprintf(stderr, "%d, %d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
+        fprintf(stderr, "%2d, %8d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
     } else {
         fprintf(stderr, "Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
     }
