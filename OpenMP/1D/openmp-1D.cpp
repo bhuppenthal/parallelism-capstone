@@ -11,7 +11,7 @@
 #include <math.h>
 #include <omp.h>
 
-#define NUM_TIME_STEPS  100                      // number of time steps the simultation runs through
+#define NUM_TIME_STEPS  100                     // number of time steps the simultation runs through
 
 #ifndef NUME
 #define NUME            1024                    // total number of elements
@@ -24,8 +24,12 @@
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
 #ifndef PRINT_ALL_TIME_STEPS
-#define PRINT_ALL_TIME_STEPS		false         // set to true to allow all time steps to print
-#endif                            
+#define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
+#endif
+
+#ifndef CSV
+#define CSV                         true       // set to true to print CSV of performances
+#endif
 
 float   Temps[2][NUME];                         // storing all temperatures "Now" and "Next" states
 
@@ -74,7 +78,11 @@ int main(void) {
     double usecs = 1000000 * (time_end - time_init);
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
 
-    printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
+    if (CSV) {
+        fprintf(stderr, "%d, %d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
+    } else {
+        fprintf(stderr, "Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
+    }
 }
 
 void DoAllWork(int me) {
@@ -97,7 +105,7 @@ void DoAllWork(int me) {
             Temps[next][first] = Temps[now][first] + dtemp;
         }
 
-        // all the nodes in between:
+        // all the elements in between:
         for (int i = first + 1; i <= last - 1; i++) {
             
             float dtemp = ((K/(RHO*C)) *
