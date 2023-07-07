@@ -23,6 +23,10 @@
 
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
+#ifndef PRINT_ALL_TIME_STEPS
+#define PRINT_ALL_TIME_STEPS		false         // set to true to allow all time steps to print
+#endif                            
+
 float   Temps[2][NUME];                         // storing all temperatures "Now" and "Next" states
 
 int     now;                                    // which array is the "current values" = 0 or 1
@@ -119,11 +123,12 @@ void DoAllWork(int me) {
         // want just one thread swapping the definitions of now and next
         #pragma omp single
         {
-
-            printf("Time step: %i ", step);
-            
-            for (int i = 0; i < NUME; i++) {
-                printf(" %.2f \n ", Temps[next][i]);
+            if (PRINT_ALL_TIME_STEPS) {
+                printf("Time step: %i ", step);
+                
+                for (int i = 0; i < NUME; i++) {
+                    printf(" %.2f \n ", Temps[next][i]);
+                }
             }
 
             now = next;
