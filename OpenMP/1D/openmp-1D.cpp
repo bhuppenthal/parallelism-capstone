@@ -80,7 +80,7 @@ void DoAllWork(int me) {
     int last = first + (NUM_ELEM_PER_THREAD - 1);
 
     for (int step = 0; step < NUM_TIME_STEPS; step++) {
-        
+
         // first element on the left:
         {
             float left = 0;
@@ -119,8 +119,16 @@ void DoAllWork(int me) {
         // want just one thread swapping the definitions of now and next
         #pragma omp single
         {
+
+            printf("Time step: %i ", step);
+            
+            for (int i = 0; i < NUME; i++) {
+                printf(" %.2f \n ", Temps[next][i]);
+            }
+
             now = next;
             next = 1 - next;
+
         } // implied barrier exists here
 
     }    
