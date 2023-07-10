@@ -34,8 +34,8 @@ const int SIDE = (int) sqrt(NUME);
 // TODO: switch back over to a flip flopping now / next buffer (1D example)
 float   Temps[2][SIDE][SIDE];
 
-int     Now = 0;                                    // which array is the "current values" = 0 or 1
-int     Next = 1;                                   // which array is being filled = 1 or 0
+int     Now;                                    // which array is the "current values" = 0 or 1
+int     Next;                                   // which array is being filled = 1 or 0
 
 // Heat Diffusion Equation Constants
 const float RHO = 8050;
@@ -55,6 +55,9 @@ void    DoAllWork(int);
 
 int main(void) {
 
+    Now = 0;
+    Next = 1;
+
     // Setting number of threads that will be used
     omp_set_num_threads(NUMT);
 
@@ -72,7 +75,6 @@ int main(void) {
             printf("\n");
         }
     }
-
 
     // Returns the current wall clock time in seconds
     double time_init = omp_get_wtime();
@@ -92,6 +94,7 @@ int main(void) {
 
     printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
 
+    // Verify the final temperatures sum to 100
     float sum = 0;
     for (int i = 0; i < SIDE; i++) {
         for (int j = 0; j < SIDE; j++) {
@@ -130,6 +133,10 @@ void DoAllWork(int me) {
 
             // middle elements
             for (int j = 1; j < SIDE - 1; j++) {
+                
+                float left = Temps[Now][i][j-1];
+                float right = Temps[Now][i][j+1];
+
                 float up = 0;
                 if (i != 0)
                     up = Temps[Now][i-1][j];
@@ -138,9 +145,6 @@ void DoAllWork(int me) {
                 if (i != SIDE - 1)
                     down = Temps[Now][i+1][j];
                 
-                float left = Temps[Now][i][j-1];
-                float right = Temps[Now][i][j+1];
-
                 Temps[Next][i][j] = Temps[Now][i][j] + CALC_DTEMP(Temps[Now][i][j], left, right, up, down);
             }
 
@@ -166,8 +170,11 @@ void DoAllWork(int me) {
         #pragma omp barrier
 
         // Switch Now and Next.
-        Now = Next;
-        Next = 1 - Next;
+        #pragma omp single
+        {
+            Now = Next;
+            Next = 1 - Next;
+        }
 
         if (PRINT_ALL_TIME_STEPS) {
             #pragma omp single
