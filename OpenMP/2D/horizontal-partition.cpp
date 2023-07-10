@@ -32,11 +32,10 @@
 const int SIDE = (int) sqrt(NUME);
 
 // TODO: switch back over to a flip flopping now / next buffer (1D example)
-float   NowTemps[SIDE][SIDE];
-float   NextTemps[SIDE][SIDE];
+float   Temps[2][SIDE][SIDE];
 
-bool     now;                                    // which array is the "current values" = 0 or 1
-bool     next;                                   // which array is being filled = 1 or 0
+int     Now = 0;                                    // which array is the "current values" = 0 or 1
+int     Next = 1;                                   // which array is being filled = 1 or 0
 
 // Heat Diffusion Equation Constants
 const float RHO = 8050;
@@ -59,26 +58,26 @@ int main(void) {
     // Setting number of threads that will be used
     omp_set_num_threads(NUMT);
 
-    now = false;
-    next = true;
-
     // Setting all initial temperatures to 0, except the middle value which is set to 100
     for (int i = 0; i < SIDE; i++)
         for (int j = 0; j < SIDE; j++)
-            NowTemps[i][j] = (float) 0;
+            Temps[Now][i][j] = (float) 0;
     
-    NowTemps[SIDE/2][SIDE/2] = (float) 100;
+    Temps[Now][SIDE/2][SIDE/2] = (float) 100;
 
-    for (int i = 0; i < SIDE; i++) {
-        for (int j = 0; j < SIDE; j++)
-            printf(" %.2f ", NowTemps[i][j]);
-        printf("\n");
+    if (PRINT_ALL_TIME_STEPS) {
+        for (int i = 0; i < SIDE; i++) {
+            for (int j = 0; j < SIDE; j++)
+                printf(" %.2f ", Temps[Now][i][j]);
+            printf("\n");
+        }
     }
+
 
     // Returns the current wall clock time in seconds
     double time_init = omp_get_wtime();
 
-    #pragma omp parallel default(none) shared(NowTemps,now,next) 
+    #pragma omp parallel default(none) shared(Temps,Now,Next) 
     {
         // save the thread number
         int me = omp_get_thread_num();
@@ -96,7 +95,7 @@ int main(void) {
     float sum = 0;
     for (int i = 0; i < SIDE; i++) {
         for (int j = 0; j < SIDE; j++) {
-            sum += NowTemps[i][j];
+            sum += Temps[Now][i][j];
         }
     }
 
@@ -116,49 +115,49 @@ void DoAllWork(int me) {
             // leftmost element
             {
                 float left = 0;
-                float right = NowTemps[i][1];
+                float right = Temps[Now][i][1];
 
                 float up = 0;
                 if (i != 0)
-                    up = NowTemps[i-1][0];
+                    up = Temps[Now][i-1][0];
 
                 float down = 0;
                 if (i != SIDE - 1)
-                    down = NowTemps[i+1][0];
+                    down = Temps[Now][i+1][0];
 
-                NextTemps[i][0] = NowTemps[i][0] + CALC_DTEMP(NowTemps[i][0], left, right, up, down);
+                Temps[Next][i][0] = Temps[Now][i][0] + CALC_DTEMP(Temps[Now][i][0], left, right, up, down);
             }
 
             // middle elements
             for (int j = 1; j < SIDE - 1; j++) {
                 float up = 0;
                 if (i != 0)
-                    up = NowTemps[i-1][j];
+                    up = Temps[Now][i-1][j];
                 
                 float down = 0;
                 if (i != SIDE - 1)
-                    down = NowTemps[i+1][j];
+                    down = Temps[Now][i+1][j];
                 
-                float left = NowTemps[i][j-1];
-                float right = NowTemps[i][j+1];
+                float left = Temps[Now][i][j-1];
+                float right = Temps[Now][i][j+1];
 
-                NextTemps[i][j] = NowTemps[i][j] + CALC_DTEMP(NowTemps[i][j], left, right, up, down);
+                Temps[Next][i][j] = Temps[Now][i][j] + CALC_DTEMP(Temps[Now][i][j], left, right, up, down);
             }
 
             // rightmost element
             {
-                float left = NowTemps[i][SIDE-2];
+                float left = Temps[Now][i][SIDE-2];
                 float right = 0;
 
                 float up = 0;
                 if (i != 0)
-                    up = NowTemps[i-1][SIDE-1];
+                    up = Temps[Now][i-1][SIDE-1];
 
                 float down = 0;
                 if (i != SIDE - 1)
-                    down = NowTemps[i+1][SIDE-1];
+                    down = Temps[Now][i+1][SIDE-1];
 
-                NextTemps[i][SIDE-1] = NowTemps[i][SIDE-1] + CALC_DTEMP(NowTemps[i][SIDE-1], left, right, up, down);
+                Temps[Next][i][SIDE-1] = Temps[Now][i][SIDE-1] + CALC_DTEMP(Temps[Now][i][SIDE-1], left, right, up, down);
             }
             
         }
@@ -166,25 +165,22 @@ void DoAllWork(int me) {
         // all threads need to wait here so that all NowTemps values are filled:
         #pragma omp barrier
 
-        #pragma omp single
-        {
-            // TODO: when changing to flipping buffers, change this code as well
-            if (PRINT_ALL_TIME_STEPS) {
+        // Switch Now and Next.
+        Now = Next;
+        Next = 1 - Next;
+
+        if (PRINT_ALL_TIME_STEPS) {
+            #pragma omp single
+            {
                 printf("\nTime step: %i\n", step);
                 
                 for (int i = 0; i < SIDE; i++) {
                     for (int j = 0; j < SIDE; j++) {
-                        printf(" %.2f ", NextTemps[i][j]);
+                        printf(" %.2f ", Temps[Now][i][j]);
                     }
                     printf("\n");
                 }
-            }
-
-            for (int i = 0; i < SIDE; i++) {
-                for (int j = 0; j < SIDE; j++) {
-                    NowTemps[i][j] = NextTemps[i][j];
-                }
-            }
-        } // implied barrier exists here
+            } // implied barrier exists here
+        }
     }    
 }
