@@ -27,8 +27,12 @@
 #define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
 #endif
 
+#ifndef PRINT_LAST_TIME_STEP
+#define PRINT_LAST_TIME_STEP        false        // set to true to allow only the final time step to print
+#endif
+
 #ifndef CSV
-#define CSV                         true       // set to true to print CSV of performances
+#define CSV                         false       // set to true to print CSV of performances
 #endif
 
 float   Temps[2][NUME];                         // storing all temperatures "Now" and "Next" states
@@ -81,8 +85,18 @@ int main(void) {
     if (CSV) {
         fprintf(stderr, "%2d, %8d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
     } else {
+
+        if (PRINT_LAST_TIME_STEP) {
+            for (int i = 0; i < NUME; i++) {
+                printf(" %.2f \n ", Temps[next][i]);
+            } 
+            fprintf(stderr, "Time Step: %i\n", NUM_TIME_STEPS);
+        }
+
         fprintf(stderr, "Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
     }
+
+
 }
 
 void DoAllWork(int me) {
