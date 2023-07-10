@@ -31,7 +31,6 @@
 
 const int SIDE = (int) sqrt(NUME);
 
-// TODO: switch back over to a flip flopping now / next buffer (1D example)
 float   Temps[2][SIDE][SIDE];
 
 int     Now;                                    // which array is the "current values" = 0 or 1
