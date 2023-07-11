@@ -59,9 +59,65 @@ void    DoAllWork(int);
 
 int main(void) {
 
+    Now = 0;
+    Next = 1;
+
+    // setting up the number of threads that will be used
+    omp_set_num_threads(NUMT);
+
+    for (int i = 0; i < SIDE; i++)
+        for (int j = 0; j < SIDE; j++)
+            Temps[Now][i][j] = (float) 0;
+    
+    Temps[Now][SIDE/2][SIDE/2] = (float) 100;
+
+    if (PRINT_ALL_TIME_STEPS) {
+        for (int i = 0; i < SIDE; i++) {
+            for (int j = 0; j < SIDE; j++)
+                printf(" %.2f ", Temps[Now][i][j]);
+            printf("\n");
+        }
+    }
+
+    // Returns the current wall clock time in seconds
+    double time_init = omp_get_wtime();
+
+    #pragma omp parallel default(none) shared(Temps,Now,Next) 
+    {
+        // save the thread number
+        int me = omp_get_thread_num();
+        // each thread calls this function passing in their number
+        DoAllWork(me);
+    }
+
+    // Calculate time elapsed from start of function until all threads completed
+    double time_end = omp_get_wtime();
+    double usecs = 1000000 * (time_end - time_init);
+    double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
+
+    printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
+
+    // Verify the final temperatures sum to 100
+    float sum = 0;
+    for (int i = 0; i < SIDE; i++) {
+        for (int j = 0; j < SIDE; j++) {
+            sum += Temps[Now][i][j];
+        }
+    }
+
+    printf("final sum %.2f\n", sum);
+
 }
 
 
 void DoAllWork(int me) {
-    
+
+    // Determine which columns this thread calculates
+    int first_col = (SIDE / NUMT) * me;
+    int last_col = first_col + (SIDE / NUMT - 1);
+
+    for (int step = 0; step < NUM_TIME_STEPS; step++) {
+
+    }
+
 }
