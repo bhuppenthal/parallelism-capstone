@@ -23,7 +23,7 @@
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
 #ifndef PRINT_ALL_TIME_STEPS
-#define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
+#define PRINT_ALL_TIME_STEPS		true       // set to true to allow all time steps to print
 #endif
 
 #ifndef PRINT_LAST_TIME_STEP
@@ -114,10 +114,97 @@ void DoAllWork(int me) {
 
     // Determine which columns this thread calculates
     int first_col = (SIDE / NUMT) * me;
-    int last_col = first_col + (SIDE / NUMT - 1);
+    int last_col = first_col + ((SIDE / NUMT) - 1);
+
+    // printf("First col: %i, last col: %i\n", first_col, last_col);
 
     for (int step = 0; step < NUM_TIME_STEPS; step++) {
 
-    }
+        // printf("STEP: %d\n", step);
 
+        // for each column this thread is responsible for
+        for (int col = first_col; col <= last_col; col++) {
+            
+            // printf("I am thread %d, this is col: %d\n", me, col);
+
+            // uppermost elements 
+            {
+                float up = 0;
+                float down = Temps[Now][1][col];
+
+                float left = 0;
+                if (col != 0) 
+                    left = Temps[Now][0][col-1];
+                
+                float right = 0;
+                if (col != SIDE -1) 
+                    right = Temps[Now][0][col+1];
+                
+                Temps[Next][0][col] = Temps[Now][0][col] + CALC_DTEMP(Temps[Now][0][col], left, right, up, down);
+
+            }
+
+
+            // middle elements
+            for (int row = 1; row <= SIDE - 2; row++) {
+                
+                float left = 0;
+                if (col != 0) 
+                    left = Temps[Now][row][col-1];
+                
+
+                float up = Temps[Now][row-1][col];
+                float down = Temps[Now][row+1][col];
+
+                float right = 0;
+                if (col != SIDE-1) 
+                    right = Temps[Now][row][col+1];
+                
+
+                Temps[Next][row][col] = Temps[Now][row][col] + CALC_DTEMP(Temps[Now][row][col], left, right, up, down);
+
+            }
+
+            // bottomost elements
+            {
+                float up = Temps[Now][SIDE-2][col];
+                float down = 0;
+
+                float left = 0;
+                if (col != 0)
+                    left = Temps[Now][SIDE-1][col-1];
+                
+                float right = 0;
+                if (col != SIDE-1)
+                    right = Temps[Now][SIDE-1][col+1];
+
+                Temps[Next][SIDE-1][col] = Temps[Now][SIDE-1][col] + CALC_DTEMP(Temps[Now][SIDE-1][col], left, right, up, down);
+            }
+
+        }
+
+
+        //all threads need to wait here until all the Temps values are filled
+        #pragma omp barrier
+
+        // switching now and next and printing time steps if indicated
+        #pragma omp single
+        {
+            Now = Next;
+            Next = 1 - Next;
+
+            if (PRINT_ALL_TIME_STEPS) {
+                printf("Time Step: %i\n", step);
+
+                for (int i = 0; i < SIDE; i++) {
+                    for (int j = 0; j < SIDE; j++) {
+                        printf(" %.2f ", Temps[Now][i][j]);
+                    }
+                    printf("\n");
+                }
+            }
+
+        }
+        
+    }
 }
