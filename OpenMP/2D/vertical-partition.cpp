@@ -23,7 +23,7 @@
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
 #ifndef PRINT_ALL_TIME_STEPS
-#define PRINT_ALL_TIME_STEPS		true       // set to true to allow all time steps to print
+#define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
 #endif
 
 #ifndef PRINT_LAST_TIME_STEP
@@ -31,7 +31,7 @@
 #endif
 
 #ifndef CSV
-#define CSV                         false       // set to true to print CSV of performances
+#define CSV                         true       // set to true to print CSV of performances
 #endif                          
 
 const int SIDE = (int) sqrt(NUME);
@@ -95,17 +95,37 @@ int main(void) {
     double usecs = 1000000 * (time_end - time_init);
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
 
-    printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
 
-    // Verify the final temperatures sum to 100
-    float sum = 0;
-    for (int i = 0; i < SIDE; i++) {
-        for (int j = 0; j < SIDE; j++) {
-            sum += Temps[Now][i][j];
+    if (CSV) {
+
+        fprintf(stderr, "%2d, %8d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
+
+    } else {
+
+        if (PRINT_LAST_TIME_STEP) {
+            printf("Time Step: %i\n", NUM_TIME_STEPS - 1);
+
+            for (int i = 0; i < SIDE; i++) {
+                for (int j = 0; j < SIDE; j++) {
+                    printf(" %.2f ", Temps[Now][i][j]);
+                }
+                printf("\n");
+            }
         }
+
+        fprintf(stderr, "Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
+
+        // Verify the final temperatures sum to 100
+        float sum = 0;
+        for (int i = 0; i < SIDE; i++) {
+            for (int j = 0; j < SIDE; j++) {
+                sum += Temps[Now][i][j];
+            }
+        }
+
+        printf("final sum %.2f\n", sum);
     }
 
-    printf("final sum %.2f\n", sum);
 
 }
 
