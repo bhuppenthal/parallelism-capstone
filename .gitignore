@@ -1,5 +1,7 @@
 .vscode/
 *.txt
 *.csv
+
+# use these as suffixes for your programs
 *-verify
 *-perf
