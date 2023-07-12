@@ -15,13 +15,10 @@
 // 0 to 63, experiment with various misalignments to see results
 // with single precision floats, 16 floats / cache line
 
-const int SIDE = (int) sqrt(NUME);
-
 float   Temps[2][SIDE][SIDE];
 
 int     Now;                                    // which array is the "current values" = 0 or 1
 int     Next;                                   // which array is being filled = 1 or 0
-
 
 void    DoAllWork(int);
 
