@@ -98,7 +98,6 @@ void DoAllWork(int me) {
                     down = Temps[Now][i+1][0];
 
                 Temps[Next][i][0] = Temps[Now][i][0] + CALC_DTEMP(Temps[Now][i][0], left, right, up, down);
-                printf("thread %d next temp is now %0.2f\n", me, Temps[Next][i][0]);
             }
 
             // middle elements

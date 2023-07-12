@@ -5,3 +5,6 @@
 # use these as suffixes for your programs
 *-verify
 *-perf
+
+# ignore compilation targets
+*.o
