@@ -26,7 +26,7 @@ int     Now;                                    // which array is the "current v
 int     Next;                                   // which array is being filled = 1 or 0
 
 const int PARTITION_ROWS = 1;
-const int PARTITION_COLS = 3;
+const int PARTITION_COLS = 2;
 
 void    DoAllWork(int);
 
@@ -115,6 +115,12 @@ void DoAllWork(int me) {
     int last_row = partitions[me].row_end;
 
 
+    printf("I am thread %i\n", me);
+    printf("first col is %i, last col is %i\n", first_col, last_col);
+    printf("first row is %i, last row is %i\n", first_row, last_row);
+
+
+
     for (int step = 0; step < NUM_TIME_STEPS; step++) {
 
         // for each row this thread is responsible for
@@ -137,12 +143,14 @@ void DoAllWork(int me) {
                 
                 Temps[Next][row][0] = Temps[Now][row][0] + CALC_DTEMP(Temps[Now][row][0], left, right, up, down);
 
+
             }
 
 
-            // middle elements
-            for (int col = 1; col < SIDE-1; col++) {
-                
+            // middle elements for each col the thread is responsible for
+            // for (int col = first_col; col <= last_col; col++) {
+            for (int col = 1; col < SIDE-1; col++)  {
+
                 float left = Temps[Now][row][col-1];
                 float right = Temps[Now][row][col+1];
                 
@@ -162,7 +170,7 @@ void DoAllWork(int me) {
             // rightmost elements
             {
                 
-                float left = Temps[Now][row-1][SIDE-2];
+                float left = Temps[Now][row][SIDE-2];
                 float right = 0;
 
                 float up = 0;
