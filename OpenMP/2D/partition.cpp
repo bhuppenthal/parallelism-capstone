@@ -52,7 +52,6 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
             partitions[thread].row_end = row + rows[i] - 1;
             partitions[thread].col_start = col;
             partitions[thread].col_end = col + cols[j] - 1;
-
             col += cols[j];
             thread++;
         }
