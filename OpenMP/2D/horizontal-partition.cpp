@@ -9,11 +9,9 @@
 #include <omp.h>
 #include <stdbool.h>
 
-#include "partition.h"                           
+#include "partition.h"
+#include "heat.h"
 
-// TODO: add a CACHE_ALIGNMENT constant
-// 0 to 63, experiment with various misalignments to see results
-// with single precision floats, 16 floats / cache line
 
 float   Temps[2][SIDE][SIDE];
 
@@ -23,6 +21,8 @@ int     Next;                                   // which array is being filled =
 void    DoAllWork(int);
 
 int main(void) {
+
+    printf("checking heat.h RHO: %.2f\n", RHO);
 
     Now = 0;
     Next = 1;

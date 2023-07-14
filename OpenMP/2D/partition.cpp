@@ -39,7 +39,7 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
 
     for (int j = 0; j < Partition_Cols; j++) {
         cols[j] = col_min;
-        if (j < Partition_Cols) cols[j]++;
+        if (j < col_rem) cols[j]++;
     }
 
     int row = 0;
