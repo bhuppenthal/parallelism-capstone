@@ -15,9 +15,16 @@ const int NUME = SIDE*SIDE;
 
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
+// Print out readable results.
+#ifndef VERIFY_RESULTS
+#define VERIFY_RESULTS              false
+#endif
+
+// Print results for the simulation.
 #ifndef PRINT_ALL_TIME_STEPS
 #define PRINT_ALL_TIME_STEPS		true         // set to true to allow all time steps to print
 #endif
+
 
 // Partition information and methods
 struct partition {
@@ -31,5 +38,7 @@ extern struct partition partitions[NUMT];
 
 // Function prototypes.
 void Partition_2D_Array(int Partition_Rows, int Partition_Cols);
+
+void Print_Time_Step(float Temps[2][SIDE][SIDE], int now);
 
 #endif

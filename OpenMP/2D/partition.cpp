@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "partition.h"
 
@@ -61,4 +62,13 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
 
     free(rows);
     free(cols);
+}
+
+void Print_Time_Step(float Temps[2][SIDE][SIDE], int now) {
+    for (int i = 0; i < SIDE; i++) {
+        for (int j = 0; j < SIDE; j++) {
+            printf("%.2f ", Temps[now][i][j]);
+        }
+    }
+    printf("\n");
 }
