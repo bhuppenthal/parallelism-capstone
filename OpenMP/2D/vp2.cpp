@@ -126,39 +126,15 @@ void DoAllWork(int me) {
         // for each row this thread is responsible for
         for (int row = first_row; row <= last_row; row++) {
             
-            // leftmost elements 
-            {
+            for (int col = first_col; col <= last_col; col++) {
 
                 float left = 0;
-                
-                float right = Temps[Now][row][1];
+                if (col != 0)
+                    left = Temps[Now][row][col-1];
 
-                float up = 0;
-                if (row != 0)
-                    up = Temps[Now][row-1][0];
-
-                float down = 0;
-                if (row != SIDE - 1)
-                    down = Temps[Now][row+1][0];
-                
-                Temps[Next][row][0] = Temps[Now][row][0] + CALC_DTEMP(Temps[Now][row][0], left, right, up, down);
-
-
-            }
-
-
-            // middle elements for each col the thread is responsible for
-            if (first_col = 0)
-                first_col = 1;
-            
-            if (last_col = SIDE - 1)
-                last_col = SIDE - 2;
-
-            for (int col = first_col; col <= last_col; col++) {
-            // for (int col = 1; col < SIDE-1; col++)  {
-
-                float left = Temps[Now][row][col-1];
-                float right = Temps[Now][row][col+1];
+                float right = 0;
+                if (col != SIDE - 1)
+                    right = Temps[Now][row][col+1];
                 
                 float up = 0;
                 if (row != 0)
@@ -167,27 +143,9 @@ void DoAllWork(int me) {
                 float down = 0;
                 if (row != SIDE-1)
                     down = Temps[Now][row+1][col];
-                
 
                 Temps[Next][row][col] = Temps[Now][row][col] + CALC_DTEMP(Temps[Now][row][col], left, right, up, down);
 
-            }
-
-            // rightmost elements
-            {
-                
-                float left = Temps[Now][row][SIDE-2];
-                float right = 0;
-
-                float up = 0;
-                if (row != 0)
-                    up = Temps[Now][row-1][SIDE-1];
-
-                float down = 0;
-                if (row != SIDE-1)
-                    down = Temps[Now][row+1][SIDE-1];
-
-                Temps[Next][row][SIDE-1] = Temps[Now][row][SIDE-1] + CALC_DTEMP(Temps[Now][row][SIDE-1], left, right, up, down);
             }
 
         }
