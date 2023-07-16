@@ -26,7 +26,7 @@ int     Now;                                    // which array is the "current v
 int     Next;                                   // which array is being filled = 1 or 0
 
 const int PARTITION_ROWS = 1;
-const int PARTITION_COLS = 2;
+const int PARTITION_COLS = 4;
 
 void    DoAllWork(int);
 
@@ -130,31 +130,29 @@ void DoAllWork(int me) {
             {
 
                 float left = 0;
-                
-                float right = Temps[Now][row][1];
+                if (first_col != 0)
+                    left = Temps[Now][row][first_col - 1];
+
+                float right = 0;
+                if (first_col != SIDE-1)
+                    right = Temps[Now][row][first_col + 1];
 
                 float up = 0;
                 if (row != 0)
-                    up = Temps[Now][row-1][0];
+                    up = Temps[Now][row-1][first_col];
 
                 float down = 0;
                 if (row != SIDE - 1)
-                    down = Temps[Now][row+1][0];
+                    down = Temps[Now][row+1][first_col];
                 
-                Temps[Next][row][0] = Temps[Now][row][0] + CALC_DTEMP(Temps[Now][row][0], left, right, up, down);
+                Temps[Next][row][first_col] = Temps[Now][row][first_col] + CALC_DTEMP(Temps[Now][row][first_col], left, right, up, down);
 
 
             }
 
-
             // middle elements for each col the thread is responsible for
-            if (first_col = 0)
-                first_col = 1;
-            
-            if (last_col = SIDE - 1)
-                last_col = SIDE - 2;
 
-            for (int col = first_col; col <= last_col; col++) {
+            for (int col = first_col + 1; col < last_col; col++) {
             // for (int col = 1; col < SIDE-1; col++)  {
 
                 float left = Temps[Now][row][col-1];
@@ -175,19 +173,23 @@ void DoAllWork(int me) {
 
             // rightmost elements
             {
-                
-                float left = Temps[Now][row][SIDE-2];
+                float left = 0;
+                if (last_col != 0)
+                    left = Temps[Now][row][last_col-1];
+    
                 float right = 0;
+                if (last_col != SIDE-1)
+                    right = Temps[Now][row][last_col+1];
 
                 float up = 0;
                 if (row != 0)
-                    up = Temps[Now][row-1][SIDE-1];
+                    up = Temps[Now][row-1][last_col];
 
                 float down = 0;
                 if (row != SIDE-1)
-                    down = Temps[Now][row+1][SIDE-1];
+                    down = Temps[Now][row+1][last_col];
 
-                Temps[Next][row][SIDE-1] = Temps[Now][row][SIDE-1] + CALC_DTEMP(Temps[Now][row][SIDE-1], left, right, up, down);
+                Temps[Next][row][last_col] = Temps[Now][row][last_col] + CALC_DTEMP(Temps[Now][row][last_col], left, right, up, down);
             }
 
         }
