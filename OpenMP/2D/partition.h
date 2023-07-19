@@ -10,19 +10,19 @@
 const int NUME = SIDE*SIDE;
 
 #ifndef NUMT
-#define NUMT            4                       // number of threads to use
+#define NUMT            8                       // number of threads to use
 #endif
 
 #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
 
-// Print out readable results.
+// Print out readable results
 #ifndef VERIFY_RESULTS
-#define VERIFY_RESULTS              false
+#define VERIFY_RESULTS              true
 #endif
 
-// Print results for the simulation.
+// Print results for the simulation
 #ifndef PRINT_ALL_TIME_STEPS
-#define PRINT_ALL_TIME_STEPS		true         // set to true to allow all time steps to print
+#define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
 #endif
 
 
