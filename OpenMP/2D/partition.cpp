@@ -1,9 +1,35 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 #include "partition.h"
 
+struct tuple partition_dims;
+
 struct partition partitions[NUMT];
+
+struct tuple* Generate_Partitions() {
+    /*
+    Given NUMT, calculates the closest factors of NUMT.
+    
+    Used by the rectangular partition code.
+    */
+    int rows;
+    int cols;
+
+    rows = (int) ceil(sqrt(NUMT));
+    cols = NUMT/rows;
+
+    while (rows*cols != NUMT) {
+        rows--;
+        cols = NUMT/rows;
+    }
+
+    partition_dims.rows = rows;
+    partition_dims.cols = cols;
+
+    return &partition_dims;
+}
 
 void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
     /*

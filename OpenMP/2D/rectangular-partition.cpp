@@ -50,8 +50,18 @@ int main(void) {
     }
 
     // Divide Temps into NUMT partitions
-    Partition_2D_Array(2, 4);
+    struct tuple* partition_dims = Generate_Partitions();
+    if (DEBUG)
+        fprintf(stderr, "   partition_dims: %d %d\n", partition_dims->rows, partition_dims->cols);
 
+    Partition_2D_Array(partition_dims->rows, partition_dims->cols);
+    if (DEBUG) {
+        fprintf(stderr, "   partitioning 2d array is not causing the segfault\n");
+        for(int i = 0; i < NUMT; i++)
+            fprintf(stderr, "       NUMT %d : [%d, %d] [%d, %d]\n", i, partitions[i].row_start, partitions[i].row_end,
+                                                                    partitions[i].col_start, partitions[i].col_end);
+    }
+    
     // Returns the current wall clock time in seconds
     double time_init = omp_get_wtime();
 
@@ -79,7 +89,8 @@ int main(void) {
         printf("final sum %.2f\n", sum);
     }
 
-    printf("-_-");
+    if (CSV)
+        printf("%2d, %8d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
 }
 
 void DoAllWork(int me) {

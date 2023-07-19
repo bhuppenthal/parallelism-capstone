@@ -1,7 +1,7 @@
 #ifndef PARTITION_H
 #define PARTITION_H
 
-#define NUM_TIME_STEPS  100                      // number of time steps the simultation runs through
+#define NUM_TIME_STEPS  100
 
 #ifndef SIDE
 #define SIDE            8
@@ -10,23 +10,35 @@
 const int NUME = SIDE*SIDE;
 
 #ifndef NUMT
-#define NUMT            8                       // number of threads to use
+#define NUMT            8
 #endif
 
-#define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
+#define NUM_ELEM_PER_THREAD    (NUME/NUMT)
 
-// Print out readable results
+#define DEBUG                       false
+
+// Print readable results
 #ifndef VERIFY_RESULTS
-#define VERIFY_RESULTS              true
+#define VERIFY_RESULTS              false
 #endif
 
 // Print results for the simulation
 #ifndef PRINT_ALL_TIME_STEPS
-#define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
+#define PRINT_ALL_TIME_STEPS		false
+#endif
+
+// Print CSV formatted performance results
+#ifndef CSV
+#define CSV                         false
 #endif
 
 
 // Partition information and methods
+struct tuple {
+    int rows;
+    int cols;
+};
+
 struct partition {
     int row_start;
     int row_end;
@@ -37,6 +49,8 @@ struct partition {
 extern struct partition partitions[NUMT];
 
 // Function prototypes.
+struct tuple* Generate_Partitions();
+
 void Partition_2D_Array(int Partition_Rows, int Partition_Cols);
 
 void Print_Time_Step(float Temps[2][SIDE][SIDE], int now);
