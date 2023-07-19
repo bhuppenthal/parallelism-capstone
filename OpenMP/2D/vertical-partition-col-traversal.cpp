@@ -1,7 +1,7 @@
 /*
     Heat Diffusion Equation Simulation - 2D Using OpenMP
 
-    Naive implementation using vertical partitions.
+    Naive implementation using vertical partitions - traversing through paritions in column-major order.
 
 */
 
@@ -11,22 +11,7 @@
 #include <stdbool.h>
 
 #include "partition.h"
-
-// #define NUM_TIME_STEPS  100                      // number of time steps the simultation runs through
-
-// #ifndef NUME
-// #define NUME            64                    // total number of elements
-// #endif
-
-// #ifndef NUMT
-// #define NUMT            4                       // number of threads to use
-// #endif
-
-// #define NUM_ELEM_PER_THREAD    (NUME/NUMT)      // number of elements in each thread
-
-// #ifndef PRINT_ALL_TIME_STEPS
-// #define PRINT_ALL_TIME_STEPS		false       // set to true to allow all time steps to print
-// #endif
+#include "heat.h"
 
 #ifndef PRINT_LAST_TIME_STEP
 #define PRINT_LAST_TIME_STEP        false        // set to true to allow only the final time step to print
@@ -36,26 +21,11 @@
 #define CSV                         true       // set to true to print CSV of performances
 #endif                          
 
-// const int SIDE = (int) sqrt(NUME);
-
 float   Temps[2][SIDE][SIDE];
 
 int     Now;                                    // which array is the "current values" = 0 or 1
 int     Next;                                   // which array is being filled = 1 or 0
 
-// // Heat Diffusion Equation Constants
-// const float RHO = 8050;
-// const float C = 0.466;
-// const float K = 20;
-// float k_over_rho_c = K/(RHO*C);                 // units of m^2/s NOTE: Cannot be a const (true for OpenMP too?)
-// // K/(RHO*C) = 5.33 x 10^-6 m^2/s
-
-// const float DX = 1;
-// const float DY = 1;
-// const float DT = 1;
-
-// // Heat Diffusion Equation
-// #define CALC_DTEMP(elem, left, right, up, down) (k_over_rho_c * DT * ((down - 2*elem + up)/(DY * DY) + (left - 2*elem + right)/(DX * DX)));
 
 void    DoAllWork(int);
 
@@ -138,16 +108,10 @@ void DoAllWork(int me) {
     int first_col = (SIDE / NUMT) * me;
     int last_col = first_col + ((SIDE / NUMT) - 1);
 
-    // printf("First col: %i, last col: %i\n", first_col, last_col);
-
     for (int step = 0; step < NUM_TIME_STEPS; step++) {
-
-        // printf("STEP: %d\n", step);
 
         // for each column this thread is responsible for
         for (int col = first_col; col <= last_col; col++) {
-            
-            // printf("I am thread %d, this is col: %d\n", me, col);
 
             // uppermost elements 
             {
@@ -165,7 +129,6 @@ void DoAllWork(int me) {
                 Temps[Next][0][col] = Temps[Now][0][col] + CALC_DTEMP(Temps[Now][0][col], left, right, up, down);
 
             }
-
 
             // middle elements
             for (int row = 1; row <= SIDE - 2; row++) {

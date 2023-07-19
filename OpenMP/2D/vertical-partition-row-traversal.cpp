@@ -11,6 +11,7 @@
 #include <stdbool.h>
 
 #include "partition.h"
+#include "heat.h"
 
 #ifndef PRINT_LAST_TIME_STEP
 #define PRINT_LAST_TIME_STEP        false        // set to true to allow only the final time step to print
@@ -115,12 +116,6 @@ void DoAllWork(int me) {
     int last_row = partitions[me].row_end;
 
 
-    // printf("I am thread %i\n", me);
-    // printf("first col is %i, last col is %i\n", first_col, last_col);
-    // printf("first row is %i, last row is %i\n", first_row, last_row);
-
-
-
     for (int step = 0; step < NUM_TIME_STEPS; step++) {
 
         // for each row this thread is responsible for
@@ -153,7 +148,6 @@ void DoAllWork(int me) {
             // middle elements for each col the thread is responsible for
 
             for (int col = first_col + 1; col < last_col; col++) {
-            // for (int col = 1; col < SIDE-1; col++)  {
 
                 float left = Temps[Now][row][col-1];
                 float right = Temps[Now][row][col+1];
