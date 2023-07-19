@@ -17,7 +17,7 @@
 #endif
 
 #ifndef CSV
-#define CSV                         false       // set to true to print CSV of performances
+#define CSV                         true       // set to true to print CSV of performances
 #endif
 
 float   Temps[2][SIDE][SIDE];
@@ -26,7 +26,7 @@ int     Now;                                    // which array is the "current v
 int     Next;                                   // which array is being filled = 1 or 0
 
 const int PARTITION_ROWS = 1;
-const int PARTITION_COLS = 4;
+const int PARTITION_COLS = NUMT;
 
 void    DoAllWork(int);
 
@@ -115,9 +115,9 @@ void DoAllWork(int me) {
     int last_row = partitions[me].row_end;
 
 
-    printf("I am thread %i\n", me);
-    printf("first col is %i, last col is %i\n", first_col, last_col);
-    printf("first row is %i, last row is %i\n", first_row, last_row);
+    // printf("I am thread %i\n", me);
+    // printf("first col is %i, last col is %i\n", first_col, last_col);
+    // printf("first row is %i, last row is %i\n", first_row, last_row);
 
 
 

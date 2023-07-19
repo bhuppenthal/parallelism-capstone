@@ -33,7 +33,7 @@
 #endif
 
 #ifndef CSV
-#define CSV                         false       // set to true to print CSV of performances
+#define CSV                         true       // set to true to print CSV of performances
 #endif                          
 
 // const int SIDE = (int) sqrt(NUME);
