@@ -9,11 +9,9 @@
 #include <omp.h>
 #include <stdbool.h>
 
-#include "partition.h"                           
+#include "partition.h"
+#include "heat.h"
 
-// TODO: add a CACHE_ALIGNMENT constant
-// 0 to 63, experiment with various misalignments to see results
-// with single precision floats, 16 floats / cache line
 
 float   Temps[2][SIDE][SIDE];
 
@@ -37,12 +35,18 @@ int main(void) {
     
     Temps[Now][SIDE/2][SIDE/2] = (float) 100;
 
-    if (PRINT_ALL_TIME_STEPS) {
+    if (VERIFY_RESULTS) {
         for (int i = 0; i < SIDE; i++) {
             for (int j = 0; j < SIDE; j++)
                 printf(" %.2f ", Temps[Now][i][j]);
             printf("\n");
         }
+    }
+
+    if (PRINT_ALL_TIME_STEPS) {
+        printf("NUMR: %d\n", SIDE);
+        printf("NUMC: %d\n", SIDE);
+        Print_Time_Step(Temps, Now);
     }
 
     // Returns the current wall clock time in seconds
@@ -61,17 +65,18 @@ int main(void) {
     double usecs = 1000000 * (time_end - time_init);
     double mega_elem_per_sec = (float)NUM_TIME_STEPS * (float)NUME / usecs;
 
-    printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
+    if (VERIFY_RESULTS) {
+        printf("Performance in MegaElements/s: %10.2lf\n", mega_elem_per_sec);
 
-    // Verify the final temperatures sum to 100
-    float sum = 0;
-    for (int i = 0; i < SIDE; i++) {
-        for (int j = 0; j < SIDE; j++) {
-            sum += Temps[Now][i][j];
+        // Verify the final temperatures sum to 100
+        float sum = 0;
+        for (int i = 0; i < SIDE; i++) {
+            for (int j = 0; j < SIDE; j++) {
+                sum += Temps[Now][i][j];
+            }
         }
+        printf("final sum %.2f\n", sum);
     }
-
-    printf("final sum %.2f\n", sum);
 }
 
 void DoAllWork(int me) {
@@ -143,19 +148,20 @@ void DoAllWork(int me) {
         {
             Now = Next;
             Next = 1 - Next;
-        }
 
-        if (PRINT_ALL_TIME_STEPS) {
-            #pragma omp single
-            {
+            if (VERIFY_RESULTS) {
                 printf("\nTime step: %i\n", step);
-                
+                    
                 for (int i = 0; i < SIDE; i++) {
                     for (int j = 0; j < SIDE; j++) {
                         printf(" %.2f ", Temps[Now][i][j]);
                     }
                     printf("\n");
                 }
+            }
+
+            if (PRINT_ALL_TIME_STEPS) {
+                Print_Time_Step(Temps, Now);
             }
         }
     }    
