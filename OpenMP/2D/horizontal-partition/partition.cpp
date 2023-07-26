@@ -1,8 +1,35 @@
 #include <stdlib.h>
+#include <stdio.h>
+#include <math.h>
 
 #include "partition.h"
 
+struct tuple partition_dims;
+
 struct partition partitions[NUMT];
+
+struct tuple* Generate_Partitions() {
+    /*
+    Given NUMT, calculates the closest factors of NUMT.
+    
+    Used by the rectangular partition code.
+    */
+    int rows;
+    int cols;
+
+    rows = (int) ceil(sqrt(NUMT));
+    cols = NUMT/rows;
+
+    while (rows*cols != NUMT) {
+        rows--;
+        cols = NUMT/rows;
+    }
+
+    partition_dims.rows = rows;
+    partition_dims.cols = cols;
+
+    return &partition_dims;
+}
 
 void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
     /*
@@ -39,7 +66,7 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
 
     for (int j = 0; j < Partition_Cols; j++) {
         cols[j] = col_min;
-        if (j < Partition_Cols) cols[j]++;
+        if (j < col_rem) cols[j]++;
     }
 
     int row = 0;
@@ -52,7 +79,6 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
             partitions[thread].row_end = row + rows[i] - 1;
             partitions[thread].col_start = col;
             partitions[thread].col_end = col + cols[j] - 1;
-
             col += cols[j];
             thread++;
         }
@@ -62,4 +88,13 @@ void Partition_2D_Array(int Partition_Rows, int Partition_Cols) {
 
     free(rows);
     free(cols);
+}
+
+void Print_Time_Step(float Temps[2][SIDE][SIDE], int now) {
+    for (int i = 0; i < SIDE; i++) {
+        for (int j = 0; j < SIDE; j++) {
+            printf("%.2f ", Temps[now][i][j]);
+        }
+    }
+    printf("\n");
 }
