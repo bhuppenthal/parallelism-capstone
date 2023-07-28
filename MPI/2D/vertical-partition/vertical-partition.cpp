@@ -136,7 +136,51 @@ int main(int argc, char *argv[]) {
 
     }
 
+    // all the vertical paritions (ie. PPTemps 2D arrays) have been filled for each processor and BOSS
+    double time0 = MPI_Wtime();
+
+    for(int steps = 0; steps < NUM_TIME_STEPS; steps++) {
+        // do the computation for one time step:
+        DoOneTimeStep(me);
+    }
+
+    double time1 = MPI_Wtime( );
+
+    if( me == BOSS )
+    {
+        double seconds = time1 - time0;
+        double performance = 
+            (double)NUM_TIME_STEPS * (double)NUMELEMENTS / seconds / 1000000.;
+                // mega-elements computed per second
+        fprintf( stderr, "%3d, %10d, %8.2lf\n", NumCpus, NUMELEMENTS, performance );
+    }
+
+    // Deallocate memory for PPTemps
+    for (int i = 0; i < PPRows; i++) {
+        delete[] PPTemps[i];
+    }
+    delete[] PPTemps;
+
+    // Deallocate memory for NextTemps
+    for (int i = 0; i < PPRows; i++) {
+        delete[] NextTemps[i];
+    }
+    delete[] NextTemps;
+
+    // Deallocate memory for TempData (only if BOSS)
+    if (me == BOSS) {
+        for (int i = 0; i < GRID_SIZE; i++) {
+            delete[] TempData[i];
+        }
+        delete[] TempData;
+    }
+
     MPI_Finalize( );
     return 0;
 
+}
+
+void DoOneTimeStep(int me) {
+    MPI_Status status;
+    
 }
