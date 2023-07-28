@@ -13,9 +13,9 @@
 #endif
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
-#define NUM_TIME_STEPS 4
+#define NUM_TIME_STEPS 100
 #define DEBUG false
-// #define WANT_EACH_TIME_STEPS_DATA
+#define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
 
@@ -142,7 +142,27 @@ int main(int argc, char *argv[]) {
     for(int steps = 0; steps < NUM_TIME_STEPS; steps++) {
         // do the computation for one time step:
         DoOneTimeStep(me);
+        // ask for all the data:
+#ifdef WANT_EACH_TIME_STEPS_DATA
+        GatherResult(me);
+        //MPI_Barrier(MPI_COMM_WORLD);
+
+        if (me == BOSS) {
+            fprintf(stdout, "Time step: %3d\n", steps);
+            if (me == BOSS) {
+                for (int i = 0; i < GRID_SIZE; i++) {
+                    for (int j = 0; j < GRID_SIZE; j++) {
+                        std::cout << std::fixed << std::setprecision(2) << TempData[i][j] << " ";
+                    }
+                    std::cout << std::endl;
+                }            
+            }
+        }
+#endif    
     }
+#ifndef WANT_EACH_TIME_STEPS_DATA
+    GatherResult(me);
+#endif
 
     double time1 = MPI_Wtime( );
 
@@ -303,5 +323,42 @@ void DoOneTimeStep(int me) {
     // }
     // DEBUGGING
 
+}
 
+void GatherResult(int me) {
+    MPI_Status status;
+
+    if (me == BOSS) {
+        // Copy the BOSS local temp array data to global temp array
+        for (int i = 0; i < PPRows; i++) {
+            memcpy(TempData[i], PPTemps[i], PPCols * sizeof(float));
+        }
+
+        // Receive data from other processors
+        for (int src = 1; src < NumCpus; src++) {
+            int startRow = 0;// index of first row of the strip
+            int endRow = PPRows - 1;
+            int start_col = src * PPCols;
+            int rowIdx = startRow; // Index of the next row to be received
+
+
+            while (rowIdx <= endRow) {
+                MPI_Recv(&TempData[rowIdx][start_col], PPCols, MPI_FLOAT, src, rowIdx, MPI_COMM_WORLD, &status);
+                if(DEBUG) fprintf(stderr, "BOSS received %3d from %3d\n", rowIdx, src);
+                rowIdx++;
+            }
+        }
+
+
+    } else {
+        // Send the local temp array PPTemps data back to the BOSS processor row by row
+        int startRow = 0; // Index of the first row of the vertical partition
+
+        for (int i = 0; i < PPRows; i++) {
+            int tag = startRow + i; // message tag of MPI_Send
+            MPI_Send(PPTemps[i], PPCols, MPI_FLOAT, BOSS, tag, MPI_COMM_WORLD);
+            if(DEBUG) fprintf(stderr, "%3d sent %3d to BOSS\n", me, tag);
+        }
+
+    }
 }
