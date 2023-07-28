@@ -14,7 +14,7 @@
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
 #define NUM_TIME_STEPS 4
-#define DEBUG true
+#define DEBUG false
 // #define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
@@ -236,6 +236,72 @@ void DoOneTimeStep(int me) {
         if(DEBUG) fprintf(stderr, "%3d received 'L' from %3d\n", me, me + 1);
     }
 
+    // Now all processors have the necessary boundary elements we can calculate the NextTemps of each vertical partition
+    float up = 0.;
+    float down = 0.;
+
+    // first row on the top
+    // top-left corner element
+    NextTemps[0][0] = PPTemps[0][0] + CALC_DTEMP(PPTemps[0][0], left[0], PPTemps[0][1], up, PPTemps[1][0]);
+
+
+    // middle elements in the first row
+    for (int i = 1; i < PPCols - 1; i++) {
+        NextTemps[0][i] = PPTemps[0][i] + CALC_DTEMP(PPTemps[0][i], PPTemps[0][i - 1], PPTemps[0][i + 1], up, PPTemps[1][i]);
+    }
+
+
+    // top-right corner element
+    NextTemps[0][PPCols - 1] = PPTemps[0][PPCols - 1] + CALC_DTEMP(PPTemps[0][PPCols - 1], PPTemps[0][PPCols - 2], right[0], up, PPTemps[1][PPCols - 1]);
+
+
+    // all the rows in the middle
+    for (int i = 1; i < PPRows - 1; i++) {
+        // left-most elements
+        NextTemps[i][0] = PPTemps[i][0] + CALC_DTEMP(PPTemps[i][0], left[i], PPTemps[i][1], PPTemps[i - 1][0], PPTemps[i + 1][0]);
+
+
+        for (int j = 1; j < PPCols - 1; j++) {
+            NextTemps[i][j] = PPTemps[i][j] + CALC_DTEMP(PPTemps[i][j], PPTemps[i][j - 1], PPTemps[i][j + 1], PPTemps[i - 1][j], PPTemps[i + 1][j]);
+        }
+
+
+        // rightmost elements
+        NextTemps[i][PPCols - 1] = PPTemps[i][PPCols - 1] + CALC_DTEMP(PPTemps[i][PPCols - 1], PPTemps[i][PPCols - 2], right[i], PPTemps[i - 1][PPCols - 1], PPTemps[i + 1][PPCols - 1]);
+    }
+
+
+    // last row on the bottom
+    // bottom-left corner element
+    NextTemps[PPRows - 1][0] = PPTemps[PPRows - 1][0] + CALC_DTEMP(PPTemps[PPRows - 1][0], left[PPRows - 1], PPTemps[PPRows - 1][1], PPTemps[PPRows - 2][0], down);
+
+
+    // middle elements in the last row
+    for (int i = 1; i < PPCols - 1; i++) {
+        NextTemps[PPRows - 1][i] = PPTemps[PPRows - 1][i] + CALC_DTEMP(PPTemps[PPRows - 1][i], PPTemps[PPRows - 1][i - 1], PPTemps[PPRows - 1][i + 1], PPTemps[PPRows - 2][i], down);
+    }
+
+
+    // bottom-right corner element
+    NextTemps[PPRows - 1][PPCols - 1] = PPTemps[PPRows - 1][PPCols - 1] + CALC_DTEMP(PPTemps[PPRows - 1][PPCols - 1], PPTemps[PPRows - 1][PPCols - 2], right[PPRows-1], PPTemps[PPRows - 2][PPCols - 1], down);
+
+
+    // update the local dataset
+    for (int i = 0; i < PPRows; i++) {
+        for (int j = 0; j < PPCols; j++) {
+            PPTemps[i][j] = NextTemps[i][j];
+        }
+    }
+
+    // DEBUGGING
+    // printf("Hello my rank is %i, and here is my NextTemps:\n", me);
+    // for (int i = 0; i < PPRows; i++) {
+    //     for (int j = 0; j < PPCols; j++) {
+    //         printf("%2f  ", NextTemps[i][j]);
+    //     }
+    //     printf("\n");
+    // }
+    // DEBUGGING
 
 
 }
