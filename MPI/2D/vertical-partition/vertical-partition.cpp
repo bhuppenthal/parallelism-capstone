@@ -14,7 +14,7 @@
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
 #define NUM_TIME_STEPS 4
-#define DEBUG false
+#define DEBUG true
 // #define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
@@ -47,8 +47,8 @@ int main(int argc, char *argv[]) {
     PPCols = GRID_SIZE / NumCpus;
 
     // the arrays to hold boundary elements that are sent between processors
-    float PPTempsLeft[GRID_SIZE] = {0.};
-    float PPTempsRight[GRID_SIZE] = {0.};
+    // float PPTempsLeft[GRID_SIZE] = {0.};
+    // float PPTempsRight[GRID_SIZE] = {0.};
 
     // local 2D array (ie. vertical partition) for each CPU to hold thier section of temperatures
     PPTemps = new float* [PPRows];
@@ -181,6 +181,31 @@ int main(int argc, char *argv[]) {
 }
 
 void DoOneTimeStep(int me) {
-    MPI_Status status;
     
+    MPI_Status status;
+
+    float PPTempsLeft[GRID_SIZE] = {0.};
+    float PPTempsRight[GRID_SIZE] = {0.};
+    
+    // send out left and right end values
+    // (tag is point of view of the sender)
+
+    if (me != 0) // if i am not the first group on the left
+    {
+        // Need to copy all left boundary elements into PPTempsLeft array to send the left boundary values
+        for (int i = 0; i < PPRows; i++) {
+            PPTempsLeft[i] = PPTemps[i][0];
+        }
+        // send PPTempsLeft[0] temps to me-1 using the ‘L’ tag
+        MPI_Send(&PPTempsLeft[0], PPRows, MPI_FLOAT, me-1, 'L', MPI_COMM_WORLD);
+        if(DEBUG) {
+            fprintf(stderr, "%3d sent 'L' to %3d\n", me, me-1);
+            // printf("PPTemps Left for rank %i: \n", me);
+            // for (int i =0; i < PPRows; i++) {
+            //     printf("%0.2f\n", PPTempsLeft[i]);
+            // }
+        }
+    }
+
+
 }
