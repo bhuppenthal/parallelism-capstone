@@ -192,7 +192,7 @@ void DoOneTimeStep(int me) {
 
     if (me != 0) // if i am not the first group on the left
     {
-        // Need to copy all left boundary elements into PPTempsLeft array to send the left boundary values
+        // Need to copy all left boundary elements into PPTempsLeft array to send them
         for (int i = 0; i < PPRows; i++) {
             PPTempsLeft[i] = PPTemps[i][0];
         }
@@ -206,6 +206,36 @@ void DoOneTimeStep(int me) {
             // }
         }
     }
+
+    if (me != NumCpus - 1) // if I am not the last group on the right
+    {
+        // Need to copy all right boundary elements into PPTempsRight array to send them
+	    for (int i = 0; i < PPRows; i++) {
+	        PPTempsRight[i] = PPTemps[i][PPCols-1];
+        }
+
+        //send PPTempsRight[0] temps - to me+1 using the ‘R’ tag 
+	    MPI_Send(&PPTempsRight[0], PPRows, MPI_FLOAT, me+1, 'R', MPI_COMM_WORLD);
+	    if(DEBUG) fprintf(stderr, "%3d sent 'R' to %3d\n", me, me+1);
+    }
+
+    float left[GRID_SIZE] = {0.};
+    float right[GRID_SIZE] = {0.};
+
+    if (me != 0)   // if i'm not the first partition on the left
+    {              
+        // receive my "left" from me - 1 using tag 'R'
+        MPI_Recv(&left[0], GRID_SIZE, MPI_FLOAT, me - 1, 'R', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf( stderr, "%3d received 'R' from %3d\n", me, me - 1);
+    }
+
+    if (me != NumCpus - 1) // if not the last partition on the right
+    {        
+        // receive my "right" from me+1 using tag 'L'
+        MPI_Recv(&right[0], GRID_SIZE, MPI_FLOAT, me + 1, 'L', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf(stderr, "%3d received 'L' from %3d\n", me, me + 1);
+    }
+
 
 
 }
