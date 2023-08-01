@@ -12,13 +12,13 @@
 #define BOSS 0
 
 #ifndef GRID_SIZE
-#define GRID_SIZE 64    // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
+#define GRID_SIZE 8    // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
 #endif
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
-#define NUM_TIME_STEPS 4
-#define DEBUG true
-//#define WANT_EACH_TIME_STEPS_DATA
+#define NUM_TIME_STEPS 100
+#define DEBUG false
+#define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
 
@@ -31,8 +31,7 @@ float** NextTemps; // per-processor 2d array to hold next-values
 float** TempData;  // the overall 2d array (GRID_SIZE X GRID_SIZE)-big temperature data
 
 void DoOneTimeStep(int me, struct tuple* partition_dims);
-// void GatherResult(int me);
-
+void GatherResult(int me);
 
 int main(int argc, char *argv[]) {
 
@@ -122,8 +121,10 @@ int main(int argc, char *argv[]) {
             int rowIdx = startRow; // Index of the next row to be sent
             int col_start = partitions[dest].col_start;
 
+            int numCols = partitions[dest].col_end - partitions[dest].col_start;
+
             while (rowIdx <= endRow) {
-                MPI_Send(&TempData[rowIdx][col_start], PPCols, MPI_FLOAT, dest, rowIdx, MPI_COMM_WORLD);
+                MPI_Send(&TempData[rowIdx][col_start], numCols, MPI_FLOAT, dest, rowIdx, MPI_COMM_WORLD);
                 rowIdx++;
             }
         }
@@ -156,9 +157,10 @@ int main(int argc, char *argv[]) {
         // do the computation for one time step:
         DoOneTimeStep(me, partition_dims);
         // ask for all the data:
+        // printf("I am on line 160 returned from DoOneTimeStep");
 #ifdef WANT_EACH_TIME_STEPS_DATA
-        // GatherResult(me);
-        //MPI_Barrier(MPI_COMM_WORLD);
+        GatherResult(me);
+        // MPI_Barrier(MPI_COMM_WORLD);
 
         if (me == BOSS) {
             fprintf(stdout, "Time step: %3d\n", steps);
@@ -173,9 +175,9 @@ int main(int argc, char *argv[]) {
         }
 #endif    
     }
-#ifndef WANT_EACH_TIME_STEPS_DATA
-    // GatherResult(me);
-#endif
+// #ifndef WANT_EACH_TIME_STEPS_DATA
+//     GatherResult(me);
+// #endif
 
     double time1 = MPI_Wtime( );
 
@@ -317,4 +319,101 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
         if(DEBUG) fprintf(stderr, "%3d received 'T' from %3d\n", me, me + partition_dims->cols);
     }
 
+    // Now time for calculations
+
+    // first row on the top
+    // top-left corner element
+    NextTemps[0][0] = PPTemps[0][0] + CALC_DTEMP(PPTemps[0][0], left[0], PPTemps[0][1], up[0], PPTemps[1][0]);
+
+
+    // middle elements in the first row
+    for (int i = 1; i < PPCols - 1; i++) {
+        NextTemps[0][i] = PPTemps[0][i] + CALC_DTEMP(PPTemps[0][i], PPTemps[0][i - 1], PPTemps[0][i + 1], up[i], PPTemps[1][i]);
+    }
+
+
+    // top-right corner element
+    NextTemps[0][PPCols - 1] = PPTemps[0][PPCols - 1] + CALC_DTEMP(PPTemps[0][PPCols - 1], PPTemps[0][PPCols - 2], right[0], up[PPCols-1], PPTemps[1][PPCols - 1]);
+
+   // all the rows in the middle
+
+    for (int i = 1; i < PPRows - 1; i++) {
+        // left-most elements
+        NextTemps[i][0] = PPTemps[i][0] + CALC_DTEMP(PPTemps[i][0], left[i], PPTemps[i][1], PPTemps[i - 1][0], PPTemps[i + 1][0]);
+
+
+        for (int j = 1; j < PPCols - 1; j++) {
+            NextTemps[i][j] = PPTemps[i][j] + CALC_DTEMP(PPTemps[i][j], PPTemps[i][j - 1], PPTemps[i][j + 1], PPTemps[i - 1][j], PPTemps[i + 1][j]);
+        }
+
+
+        // rightmost elements
+        NextTemps[i][PPCols - 1] = PPTemps[i][PPCols - 1] + CALC_DTEMP(PPTemps[i][PPCols - 1], PPTemps[i][PPCols - 2], right[i], PPTemps[i - 1][PPCols - 1], PPTemps[i + 1][PPCols - 1]);
+    }
+
+    // last row on the bottom
+    // bottom-left corner element
+    NextTemps[PPRows - 1][0] = PPTemps[PPRows - 1][0] + CALC_DTEMP(PPTemps[PPRows - 1][0], left[PPRows - 1], PPTemps[PPRows - 1][1], PPTemps[PPRows - 2][0], down[0]);
+
+
+    // middle elements in the last row
+    for (int i = 1; i < PPCols - 1; i++) {
+        NextTemps[PPRows - 1][i] = PPTemps[PPRows - 1][i] + CALC_DTEMP(PPTemps[PPRows - 1][i], PPTemps[PPRows - 1][i - 1], PPTemps[PPRows - 1][i + 1], PPTemps[PPRows - 2][i], down[i]);
+    }
+
+
+    // bottom-right corner element
+    NextTemps[PPRows - 1][PPCols - 1] = PPTemps[PPRows - 1][PPCols - 1] + CALC_DTEMP(PPTemps[PPRows - 1][PPCols - 1], PPTemps[PPRows - 1][PPCols - 2], right[PPRows-1], PPTemps[PPRows - 2][PPCols - 1], down[PPCols - 1]);
+
+    // update the local dataset
+    for (int i = 0; i < PPRows; i++) {
+        for (int j = 0; j < PPCols; j++) {
+            PPTemps[i][j] = NextTemps[i][j];
+        }
+    }
+}
+
+void GatherResult(int me) {
+    MPI_Status status;
+    printf("I am rank %i inside GATHERRESULT\n", me);
+
+    if (me == BOSS) {
+        // Copy the BOSS local temp array data to global temp array
+        printf("I am BOSS inside gather results\n");
+        for (int i = 0; i < PPRows; i++) {
+            memcpy(TempData[i], PPTemps[i], PPCols * sizeof(float));
+        }
+
+        // Receive data from other processors
+        for (int src = 1; src < NumCpus; src++) {
+            int startRow = partitions[src].row_start;// index of first row of the strip
+            int endRow = partitions[src].row_end;
+            int startCol = partitions[src].col_start;
+            int rowIdx = startRow; // Index of the next row to be received
+
+            int numCols = partitions[src].col_end - partitions[src].col_start + 1;
+            printf("Boss is trying to get row %i from processors %i of size %i\n", startRow, src, numCols);
+            printf("src is %i, startRow is %i, endRow is %i, startCol is %i, rowIdx is %i\n", src, startRow, endRow, startCol, rowIdx);
+
+            while (rowIdx <= endRow) {
+                printf("Boss is trying to get %i from %i\n", rowIdx, src);
+                MPI_Recv(&TempData[rowIdx][startCol], numCols, MPI_FLOAT, src, rowIdx - startRow, MPI_COMM_WORLD, &status);
+                if(DEBUG) fprintf(stderr, "BOSS received %3d from %3d\n", rowIdx - startRow, src);
+                rowIdx++;
+            }
+        }
+
+
+    } else {
+        // Send the local temp array PPTemps data back to the BOSS processor row by row
+        int startRow = 0; // Index of the first row of the vertical partition
+
+        for (int i = 0; i < PPRows; i++) {
+            int tag = startRow + i; // message tag of MPI_Send
+            printf("Process %d is sending row %i of size %i, tag=%i\n", me, i, PPCols, tag);
+            MPI_Send(PPTemps[i], PPCols, MPI_FLOAT, BOSS, tag, MPI_COMM_WORLD);
+            if(DEBUG) fprintf(stderr, "%3d sent %3d to BOSS\n", me, tag);
+        }
+
+    }
 }
