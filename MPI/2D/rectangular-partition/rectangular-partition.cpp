@@ -12,7 +12,7 @@
 #define BOSS 0
 
 #ifndef GRID_SIZE
-#define GRID_SIZE 16     // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
+#define GRID_SIZE 64    // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
 #endif
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
@@ -30,7 +30,7 @@ float** PPTemps;   // per-processor local 2d array temperature data
 float** NextTemps; // per-processor 2d array to hold next-values
 float** TempData;  // the overall 2d array (GRID_SIZE X GRID_SIZE)-big temperature data
 
-void DoOneTimeStep(int);
+void DoOneTimeStep(int me, struct tuple* partition_dims);
 // void GatherResult(int me);
 
 
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
 
     for(int steps = 0; steps < NUM_TIME_STEPS; steps++) {
         // do the computation for one time step:
-        DoOneTimeStep(me);
+        DoOneTimeStep(me, partition_dims);
         // ask for all the data:
 #ifdef WANT_EACH_TIME_STEPS_DATA
         // GatherResult(me);
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
 }
 
 
-void DoOneTimeStep(int me) {
+void DoOneTimeStep(int me, struct tuple* partition_dims) {
     
     MPI_Status status;
 
@@ -270,8 +270,8 @@ void DoOneTimeStep(int me) {
     {                     
         // send my PPTemps[0] to partition below useing tag 'T'
         // me - partition_dims->cols
-        MPI_Send(PPTemps[0], GRID_SIZE, MPI_FLOAT, me - partition_dims->cols, 'T', MPI_COMM_WORLD);
-        if(DEBUG) fprintf(stderr, "%3d sent 'T' to %3d\n", me, me - 1);
+        MPI_Send(PPTemps[0], PPCols, MPI_FLOAT, me - partition_dims->cols, 'T', MPI_COMM_WORLD);
+        if(DEBUG) fprintf(stderr, "%3d sent 'T' to %3d\n", me, me - partition_dims->cols);
     }
 
     // send out bottom row boundary elements
@@ -279,28 +279,42 @@ void DoOneTimeStep(int me) {
     {
         // send my PPTemps[PPRows - 1] to partition above using tag 'B'
         // me + partition_dims->cols?
-        MPI_Send(PPTemps[PPRows - 1], GRID_SIZE, MPI_FLOAT, me + partition_dims->cols, 'B', MPI_COMM_WORLD);
-        if(DEBUG) fprintf(stderr, "%3d sent 'B' to %3d\n", me, me + 1);
+        MPI_Send(PPTemps[PPRows - 1], PPCols, MPI_FLOAT, me + partition_dims->cols, 'B', MPI_COMM_WORLD);
+        if(DEBUG) fprintf(stderr, "%3d sent 'B' to %3d\n", me, me + partition_dims->cols);
     }
 
     // recieve all the boundary arrays
     std::vector<float> left(PPRows, 0.0);
     std::vector<float> right(PPRows, 0.0);
-    std::vector<float> top(PPCols, 0.0);
-    std::vector<float> bottom(PPCols, 0.0);
+    std::vector<float> up(PPCols, 0.0);
+    std::vector<float> down(PPCols, 0.0);
 
-    // if (me != 0)   // if i'm not the first partition on the left
-    // {              
-    //     // receive my "left" from me - 1 using tag 'R'
-    //     MPI_Recv(&left[0], GRID_SIZE, MPI_FLOAT, me - 1, 'R', MPI_COMM_WORLD, &status);
-    //     if(DEBUG) fprintf( stderr, "%3d received 'R' from %3d\n", me, me - 1);
-    // }
+    if (partitions[me].col_start != 0)   // if i'm not the first partition on the left
+    {              
+        // receive my "left" from me - 1 using tag 'R'
+        MPI_Recv(&left[0], PPRows, MPI_FLOAT, me - 1, 'R', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf( stderr, "%3d received 'R' from %3d\n", me, me - 1);
+    }
 
-    // if (me != NumCpus - 1) // if not the last partition on the right
-    // {        
-    //     // receive my "right" from me+1 using tag 'L'
-    //     MPI_Recv(&right[0], GRID_SIZE, MPI_FLOAT, me + 1, 'L', MPI_COMM_WORLD, &status);
-    //     if(DEBUG) fprintf(stderr, "%3d received 'L' from %3d\n", me, me + 1);
-    // }
+    if (partitions[me].col_end != GRID_SIZE -1) // if not the last partition on the right
+    {        
+        // receive my "right" from me+1 using tag 'L'
+        MPI_Recv(&right[0], PPRows, MPI_FLOAT, me + 1, 'L', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf(stderr, "%3d received 'L' from %3d\n", me, me + 1);
+    }
+
+    if (partitions[me].row_start != 0) // if I'm not one of the groups on the top
+    {
+        // recieve my "up" from from me - partition_dim->cols using tag "B"
+        MPI_Recv(&up[0], PPCols, MPI_FLOAT, me - partition_dims->cols, 'B', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf(stderr, "%3d received 'B' from %3d\n", me, me - partition_dims->cols);
+    }
+
+    if (partitions[me].row_end != GRID_SIZE-1) // if i'm not one of the groups on the bottom
+    {
+        // recieve my "down" from me + parititon-dims->cols using tag "T"
+        MPI_Recv(&down[0], PPCols, MPI_FLOAT, me + partition_dims->cols, 'T', MPI_COMM_WORLD, &status);
+        if(DEBUG) fprintf(stderr, "%3d received 'T' from %3d\n", me, me + partition_dims->cols);
+    }
 
 }
