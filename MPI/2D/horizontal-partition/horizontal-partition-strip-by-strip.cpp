@@ -1,3 +1,10 @@
+/*
+    Heat Diffusion Equation Simulation - 2D Using MPI
+
+    Implementation using horizontal partitions - distribute and gather data using strip-by-strip approach
+
+*/
+
 #include <stdio.h>
 #include <math.h>
 #include <mpi.h>
@@ -23,6 +30,8 @@ int     PPRows;  // per-processor local 2d array size, local number of elements 
 float** PPTemps;   // per-processor local 2d array temperature data
 float** NextTemps; // per-processor 2d array to hold next-values
 float** TempData;  // the overall 2d array (GRID_SIZE X GRID_SIZE)-big temperature data
+float* TempBuff;   // the overall 1d buffer for distributing and gathering data
+float* PPBuff;     // per-processor local 1d buffer
 
 void DoOneTimeStep(int);
 void GatherResult(int me);
@@ -48,6 +57,8 @@ int main(int argc, char *argv[]) {
         NextTemps[i] = new float[GRID_SIZE];
     }
 
+    PPBuff = new float[PPRows * GRID_SIZE];
+
     // broadcast the constant:
     MPI_Bcast( (void *)&k_over_rho_c, 1, MPI_FLOAT, BOSS, MPI_COMM_WORLD );
 
@@ -65,6 +76,16 @@ int main(int argc, char *argv[]) {
         }
         TempData[GRID_SIZE/2][GRID_SIZE/2] = 100.;
 
+        TempBuff = new float[GRID_SIZE * GRID_SIZE];
+
+        // Calculate the size of each row in bytes
+        size_t rowSize = GRID_SIZE * sizeof(float);
+
+        // Copy data from TempData to TempBuff
+        for (int i = 0; i < GRID_SIZE; i++) {
+            memcpy(TempBuff + i * GRID_SIZE, TempData[i], rowSize);
+        }
+
 #ifdef WANT_EACH_TIME_STEPS_DATA
         // Print out TempData to stderr
         fprintf(stdout, "Initial Matrix\n");
@@ -75,35 +96,18 @@ int main(int argc, char *argv[]) {
             std::cout << std::endl;
         }
 #endif            
+    }
 
-        // Transfer the BOSS strip data to BOSS local array (not MPI_Send)
-        for (int i = 0; i < PPRows; i++) {
-            for (int j = 0; j < GRID_SIZE; j++) {
-                PPTemps[i][j] = TempData[i][j];
-            }
-        }
+    // Distribute the global data to each processor
+    MPI_Scatter(TempBuff, PPRows * GRID_SIZE, MPI_FLOAT, PPBuff, PPRows * GRID_SIZE,
+        MPI_FLOAT, BOSS, MPI_COMM_WORLD);
 
-        // Distribute the plate data to other processors row by row
-        for (int dest = 1; dest < NumCpus; dest++) {
-            int startRow = dest * PPRows;
-            int endRow = startRow + PPRows - 1;
-            int rowIdx = startRow; // Index of the next row to be sent
+    // Calculate the size of each row in bytes
+    size_t rowSize = GRID_SIZE * sizeof(float);
 
-            while (rowIdx <= endRow) {
-                MPI_Send(&TempData[rowIdx][0], GRID_SIZE, MPI_FLOAT, dest, rowIdx, MPI_COMM_WORLD);
-                if(DEBUG) fprintf(stderr, "BOSS sent %3d to %3d\n", rowIdx, dest);
-                rowIdx++;
-            }
-        }
-    } else {
-        // Receive the plate data from the BOSS processor
-        int rowIdx = me * PPRows; // Index of the next row to be received
-
-        for (int i = 0; i < PPRows; i++) {
-            MPI_Recv(&PPTemps[i][0], GRID_SIZE, MPI_FLOAT, BOSS, rowIdx, MPI_COMM_WORLD, &status);
-            if(DEBUG) fprintf( stderr, "%3d received %3d from BOSS\n", me, rowIdx);
-            rowIdx++;
-        }
+    // Copy data from PPBuff to PPTemps
+    for (int i = 0; i < PPRows; i++) {
+        memcpy(PPTemps[i], PPBuff + i * GRID_SIZE, rowSize);
     }
 
     // all the PPTemps arrays have now been filled
@@ -116,18 +120,16 @@ int main(int argc, char *argv[]) {
         // ask for all the data:
 #ifdef WANT_EACH_TIME_STEPS_DATA
         GatherResult(me);
-        //MPI_Barrier(MPI_COMM_WORLD);
 
         if (me == BOSS) {
             fprintf(stdout, "Time step: %3d\n", steps);
-            if (me == BOSS) {
-                for (int i = 0; i < GRID_SIZE; i++) {
-                    for (int j = 0; j < GRID_SIZE; j++) {
-                        std::cout << std::fixed << std::setprecision(2) << TempData[i][j] << " ";
-                    }
-                    std::cout << std::endl;
-                }            
-            }
+            
+            for (int i = 0; i < GRID_SIZE; i++) {
+                for (int j = 0; j < GRID_SIZE; j++) {
+                    std::cout << std::fixed << std::setprecision(2) << TempData[i][j] << " ";
+                }
+                std::cout << std::endl;
+            }            
         }
 #endif
     }
@@ -158,12 +160,17 @@ int main(int argc, char *argv[]) {
     }
     delete[] NextTemps;
 
-    // Deallocate memory for TempData (only if BOSS)
+    // Deallocate memory for PPBuff
+    delete[] PPBuff;
+
+    // Deallocate memory for TempData and TempBuff (only if BOSS)
     if (me == BOSS) {
         for (int i = 0; i < GRID_SIZE; i++) {
             delete[] TempData[i];
         }
         delete[] TempData;
+
+        delete[] TempBuff;
     }
 
     MPI_Finalize();
@@ -257,33 +264,21 @@ void DoOneTimeStep(int me) {
 void GatherResult(int me) {
     MPI_Status status;
 
+    // Calculate the size of each row in bytes
+    size_t rowSize = GRID_SIZE * sizeof(float);
+
+    // Copy data from PPTemps to PPBuff
+    for (int i = 0; i < PPRows; i++) {
+        memcpy(PPBuff + i * GRID_SIZE, PPTemps[i], rowSize);
+    }
+
+    MPI_Gather(PPBuff, PPRows * GRID_SIZE, MPI_FLOAT, TempBuff, PPRows * GRID_SIZE,
+        MPI_FLOAT, BOSS, MPI_COMM_WORLD);
+
     if (me == BOSS) {
-        // Copy the BOSS local temp array data to global temp array
-        for (int i = 0; i < PPRows; i++) {
-            memcpy(TempData[i], PPTemps[i], GRID_SIZE * sizeof(float));
-        }
-
-        // Receive data from other processors
-        for (int src = 1; src < NumCpus; src++) {
-            int startRow = src * PPRows; // index of the first row of the strip
-            int endRow = startRow + PPRows - 1;
-            int rowIdx = startRow; // Index of the next row to be received
-
-            while (rowIdx <= endRow) {
-                MPI_Recv(TempData[rowIdx], GRID_SIZE, MPI_FLOAT, src, rowIdx, MPI_COMM_WORLD, &status);
-                if(DEBUG) fprintf(stderr, "BOSS received %3d from %3d\n", rowIdx, src);
-                rowIdx++;
-            }
-        }
-
-    } else {
-        // Send the local temp array PPTemps data back to the BOSS processor row by row
-        int startRow = me * PPRows; // Index of the first row of the strip
-
-        for (int i = 0; i < PPRows; i++) {
-            int tag = startRow + i; // message tag of MPI_Send
-            MPI_Send(PPTemps[i], GRID_SIZE, MPI_FLOAT, BOSS, tag, MPI_COMM_WORLD);
-            if(DEBUG) fprintf(stderr, "%3d sent %3d to BOSS\n", me, tag);
+        // Copy data from TempBuff to TempData
+        for (int i = 0; i < GRID_SIZE; i++) {
+            memcpy(TempData[i], TempBuff + i * GRID_SIZE, rowSize);
         }
     }
 }
