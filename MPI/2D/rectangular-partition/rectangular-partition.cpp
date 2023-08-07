@@ -12,13 +12,13 @@
 #define BOSS 0
 
 #ifndef GRID_SIZE
-#define GRID_SIZE 8    // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
+#define GRID_SIZE 32  // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
 #endif
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
 #define NUM_TIME_STEPS 100
 #define DEBUG false
-#define WANT_EACH_TIME_STEPS_DATA
+// #define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
 
@@ -45,20 +45,11 @@ int main(int argc, char *argv[]) {
 
     // Dividing the 2D array into NUMCPU partitions
     struct tuple* partition_dims = Generate_Partitions();
-    
-    // DEBUGGING
-    // printf("My name is %d: I have %d rows and %d cols\n", me, partition_dims->rows, partition_dims->cols);
-    // DEBUGGING
 
     // what is the length (PPCols) and width (PPRow) of the processor's rectangular partition
     Partition_2D_Array(partition_dims->rows, partition_dims->cols);
     PPRows = partitions[me].row_end - partitions[me].row_start + 1;
     PPCols = partitions[me].col_end - partitions[me].col_start + 1;
-
-    // DEBUGGING
-    // printf("My name is rank %i: My row start is %d and my row end is %d\n", me, partitions[me].row_start, partitions[me].row_end);
-    // printf("My name is rank %i: My col start is %d and my col end is %d\n", me, partitions[me].col_start, partitions[me].col_end);
-    //DEBUGGING
 
     // local 2D array (ie. vertical partition) for each CPU to hold thier section of temperatures
     PPTemps = new float* [PPRows];
@@ -103,17 +94,6 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        //DEBUGGING - PRINT BOSS PP TEMPS
-        // printf("Hi I am BOOS my PPRows is %d and my PPCols is %d\n", PPRows, PPCols);
-        // printf("Hi I am BOSS here are my PP Temps:\n");
-        // for (int i = 0; i < PPRows; i++) {
-        //     for (int j = 0; j < PPCols; j++) {
-        //         printf("%2f  ",PPTemps[i][j]);
-        //     }
-        //     printf("\n");
-        // }
-        // DEBUGGING
-
         // BOSS will send the rest of the partitions to the other processors sending a “row segment” 
         for (int dest = 1; dest < NumCpus; dest++) {
             int startRow = partitions[dest].row_start;
@@ -136,17 +116,6 @@ int main(int argc, char *argv[]) {
             MPI_Recv(&PPTemps[i][0], PPCols, MPI_FLOAT, BOSS, rowIdx, MPI_COMM_WORLD, &status);
             rowIdx++;
         }
-
-        //DEBUGGING
-        // printf("Hi I am rank %i my PPRows is %d and my PPCols is %d\n", me, PPRows, PPCols);
-        // printf("Hello my rank is %i, and here is my PPTemps:\n", me);
-        // for (int i = 0; i < PPRows; i++) {
-        //     for (int j = 0; j < PPCols; j++) {
-        //         printf("%2f  ",PPTemps[i][j]);
-        //     }
-        //     printf("\n");
-        // }
-        //DEBUGGING
 
     }
 
@@ -175,9 +144,9 @@ int main(int argc, char *argv[]) {
         }
 #endif    
     }
-// #ifndef WANT_EACH_TIME_STEPS_DATA
-//     GatherResult(me);
-// #endif
+#ifndef WANT_EACH_TIME_STEPS_DATA
+    GatherResult(me);
+#endif
 
     double time1 = MPI_Wtime( );
 
@@ -221,11 +190,6 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
     MPI_Status status;
 
     // 1D arrays that contain the border left, right, up, and bottom boundary elements of each 
-    // should I change these to arrays?? 
-    // PPTempsLeft = new float[PPRows];
-    // PPTempsRight = new float[PPRows];
-    // PPTempsTop = new float[PPCols];
-    // PPTempsBottom = new float[PPCols];
 
     std::vector<float> PPTempsLeft(PPRows, 0.0);
     std::vector<float> PPTempsRight(PPRows, 0.0);
@@ -246,10 +210,6 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
         MPI_Send(&PPTempsLeft[0], PPRows, MPI_FLOAT, me-1, 'L', MPI_COMM_WORLD);
         if(DEBUG) {
             fprintf(stderr, "%3d sent 'L' to %3d\n", me, me-1);
-            // printf("PPTemps Left for rank %i: \n", me);
-            // for (int i =0; i < PPRows; i++) {
-            //     printf("%0.2f\n", PPTempsLeft[i]);
-            // }
         }
     }  
 
@@ -271,7 +231,6 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
     if (partitions[me].row_start != 0) // if I'm not one of the groups on the top
     {                     
         // send my PPTemps[0] to partition below useing tag 'T'
-        // me - partition_dims->cols
         MPI_Send(PPTemps[0], PPCols, MPI_FLOAT, me - partition_dims->cols, 'T', MPI_COMM_WORLD);
         if(DEBUG) fprintf(stderr, "%3d sent 'T' to %3d\n", me, me - partition_dims->cols);
     }
@@ -280,7 +239,6 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
     if (partitions[me].row_end != GRID_SIZE-1) // if i'm not one of the groups on the bottom
     {
         // send my PPTemps[PPRows - 1] to partition above using tag 'B'
-        // me + partition_dims->cols?
         MPI_Send(PPTemps[PPRows - 1], PPCols, MPI_FLOAT, me + partition_dims->cols, 'B', MPI_COMM_WORLD);
         if(DEBUG) fprintf(stderr, "%3d sent 'B' to %3d\n", me, me + partition_dims->cols);
     }
@@ -375,11 +333,9 @@ void DoOneTimeStep(int me, struct tuple* partition_dims) {
 
 void GatherResult(int me) {
     MPI_Status status;
-    printf("I am rank %i inside GATHERRESULT\n", me);
 
     if (me == BOSS) {
         // Copy the BOSS local temp array data to global temp array
-        printf("I am BOSS inside gather results\n");
         for (int i = 0; i < PPRows; i++) {
             memcpy(TempData[i], PPTemps[i], PPCols * sizeof(float));
         }
@@ -392,11 +348,8 @@ void GatherResult(int me) {
             int rowIdx = startRow; // Index of the next row to be received
 
             int numCols = partitions[src].col_end - partitions[src].col_start + 1;
-            printf("Boss is trying to get row %i from processors %i of size %i\n", startRow, src, numCols);
-            printf("src is %i, startRow is %i, endRow is %i, startCol is %i, rowIdx is %i\n", src, startRow, endRow, startCol, rowIdx);
 
             while (rowIdx <= endRow) {
-                printf("Boss is trying to get %i from %i\n", rowIdx, src);
                 MPI_Recv(&TempData[rowIdx][startCol], numCols, MPI_FLOAT, src, rowIdx - startRow, MPI_COMM_WORLD, &status);
                 if(DEBUG) fprintf(stderr, "BOSS received %3d from %3d\n", rowIdx - startRow, src);
                 rowIdx++;
@@ -410,7 +363,6 @@ void GatherResult(int me) {
 
         for (int i = 0; i < PPRows; i++) {
             int tag = startRow + i; // message tag of MPI_Send
-            printf("Process %d is sending row %i of size %i, tag=%i\n", me, i, PPCols, tag);
             MPI_Send(PPTemps[i], PPCols, MPI_FLOAT, BOSS, tag, MPI_COMM_WORLD);
             if(DEBUG) fprintf(stderr, "%3d sent %3d to BOSS\n", me, tag);
         }

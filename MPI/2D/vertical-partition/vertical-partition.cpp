@@ -9,13 +9,13 @@
 #define BOSS 0
 
 #ifndef GRID_SIZE
-#define GRID_SIZE 8     // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
+#define GRID_SIZE 32    // global 2D array size. Total number of elements = GRID_SIZE X GRID_SIZE
 #endif
 
 #define NUMELEMENTS (GRID_SIZE * GRID_SIZE)
 #define NUM_TIME_STEPS 100
 #define DEBUG false
-#define WANT_EACH_TIME_STEPS_DATA
+// #define WANT_EACH_TIME_STEPS_DATA
 
 int     NumCpus; // total # of cpus involved
 
@@ -26,9 +26,6 @@ int     PPCols;  // per-processor local partition width;  the vertical partition
 float** PPTemps;   // per-processor local 2d array temperature data
 float** NextTemps; // per-processor 2d array to hold next-values
 float** TempData;  // the overall 2d array (GRID_SIZE X GRID_SIZE)-big temperature data
-
-// float* PPTempsLeft; // per-processor local 1D array holding all values in the leftmost column for sending to other processors
-// float* PPTempsRight; // per-processor local 1D array holding all values in the rightmost column for sending to other processors
 
 void DoOneTimeStep(int);
 void GatherResult(int me);
@@ -45,10 +42,6 @@ int main(int argc, char *argv[]) {
 
     PPRows = GRID_SIZE;
     PPCols = GRID_SIZE / NumCpus;
-
-    // the arrays to hold boundary elements that are sent between processors
-    // float PPTempsLeft[GRID_SIZE] = {0.};
-    // float PPTempsRight[GRID_SIZE] = {0.};
 
     // local 2D array (ie. vertical partition) for each CPU to hold thier section of temperatures
     PPTemps = new float* [PPRows];
@@ -93,16 +86,6 @@ int main(int argc, char *argv[]) {
             }
         }
 
-        //DEBUGGING - PRINT BOSS PP TEMPS
-        // printf("Hi I am BOSS here are my PP Temps:\n");
-        // for (int i = 0; i < PPRows; i++) {
-        //     for (int j = 0; j < PPCols; j++) {
-        //         printf("%2f  ",PPTemps[i][j]);
-        //     }
-        //     printf("\n");
-        // }
-        // DEBUGGING
-
         // BOSS will send the rest of the partitions to the other processors sending a “row segment” 
         for (int dest = 1; dest < NumCpus; dest++) {
             int startRow = 0;
@@ -123,16 +106,6 @@ int main(int argc, char *argv[]) {
             MPI_Recv(&PPTemps[i][0], PPCols, MPI_FLOAT, BOSS, rowIdx, MPI_COMM_WORLD, &status);
             rowIdx++;
         }
-
-        //DEBUGGING
-        // printf("Hello my rank is %i, and here is my PPTemps:\n", me);
-        // for (int i = 0; i < PPRows; i++) {
-        //     for (int j = 0; j < PPCols; j++) {
-        //         printf("%2f  ",PPTemps[i][j]);
-        //     }
-        //     printf("\n");
-        // }
-        //DEBUGGING
 
     }
 
@@ -220,10 +193,6 @@ void DoOneTimeStep(int me) {
         MPI_Send(&PPTempsLeft[0], PPRows, MPI_FLOAT, me-1, 'L', MPI_COMM_WORLD);
         if(DEBUG) {
             fprintf(stderr, "%3d sent 'L' to %3d\n", me, me-1);
-            // printf("PPTemps Left for rank %i: \n", me);
-            // for (int i =0; i < PPRows; i++) {
-            //     printf("%0.2f\n", PPTempsLeft[i]);
-            // }
         }
     }
 
@@ -239,6 +208,7 @@ void DoOneTimeStep(int me) {
 	    if(DEBUG) fprintf(stderr, "%3d sent 'R' to %3d\n", me, me+1);
     }
 
+    // Recieve left and right boundary values into left and right arrays respectively
     float left[GRID_SIZE] = {0.};
     float right[GRID_SIZE] = {0.};
 
@@ -312,16 +282,6 @@ void DoOneTimeStep(int me) {
             PPTemps[i][j] = NextTemps[i][j];
         }
     }
-
-    // DEBUGGING
-    // printf("Hello my rank is %i, and here is my NextTemps:\n", me);
-    // for (int i = 0; i < PPRows; i++) {
-    //     for (int j = 0; j < PPCols; j++) {
-    //         printf("%2f  ", NextTemps[i][j]);
-    //     }
-    //     printf("\n");
-    // }
-    // DEBUGGING
 
 }
 

@@ -1,21 +1,19 @@
 #ifndef PARTITION_H
 #define PARTITION_H
 
-// #define NUM_TIME_STEPS  100
-
 #ifndef SIDE
-#define SIDE            16
+#define SIDE            32
 #endif
 
 const int NUME = SIDE*SIDE;
 
 #ifndef NUMCPU
-#define NUMCPU            8
+#define NUMCPU            4
 #endif
 
 #define NUM_ELEM_PER_THREAD    (NUME/NUMCPU)
 
-#define DEBUG                       true
+#define DEBUG                       false
 
 // Print readable results
 #ifndef VERIFY_RESULTS
