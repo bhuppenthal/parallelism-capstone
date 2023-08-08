@@ -77,6 +77,9 @@ int main(void) {
         }
         printf("final sum %.2f\n", sum);
     }
+
+    if (CSV)
+        printf("%2d, %8d, %10.2lf\n", NUMT, NUME, mega_elem_per_sec);
 }
 
 void DoAllWork(int me) {
